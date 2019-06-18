@@ -1,100 +1,52 @@
 #1.Разработать фрагмент программы, позволяющий получать данные о текущих курсах валют с сайта Центробанка РФ с использованием
-#сервиса, который они предоставляют.  Реализовать сохранение (сериализацию) данных в файл.
+#сервиса, который они предоставляют.Применить шаблон проектирования «Одиночка» для предотвращения отправки
+#избыточных запросов к серверу ЦБ РФ.
 
+from xml.etree import ElementTree as ET
+from urllib.request import urlopen
+import time
 
-import urllib.request #для URL
-from xml.etree import ElementTree as ET #для XML файлов
+def dengi(lis=['R01235', 'R01239', 'R01820']):
+  
+    cursbank = urlopen("http://www.cbr.ru/scripts/XML_daily.asp")
+    spis = {}
+    xml = ET.parse(cursbank)
+    root = xml.getroot()
+    valutes = root.findall('Valute')
+    for el in valutes:
+        denid = el.get('ID')
+        if str(denid) in lis:
+            curden = el.find('Value').text
+            spis[denid] = curden
+    time.clock()
+    return spis
 
-def nerv(func):
-  import functools #сборник функций высокого уровня: взаимодействующих с другими функциями или возвращающие другие функции
-  import datetime #модуль datetime предоставляет классы для обработки времени и даты разными способами
-  @functools.wraps(func) #оборачиваем функцию func
-  def wrapper(calc):
-      t = datetime.datetime.now()
-      result = func(calc)
-      t = datetime.datetime.now() - t
+class CurrencyBoard(): #Класс синглтон
+    
+    def __init__(self): 
+        self.currencies = ['R01235','R01239','R01820']
+        self.rates = dengi(self.currencies)
 
-      with open('Record.txt', 'a') as f:
-            f.write("\n")
-            f.write("_" * 20)
-            f.write("\n")
-            f.write("Переводим " + str(calc) + " " + str(in_type) + " в " + str(convert_to) + "\n")
-            f.write("Результат: " + str(result) + " " + str(convert_to) +"\n")
-            f.write("Время выполнения функции " +  str(t))
-            f.write("\n")
-      return result
-  return wrapper  
+    def cache(self, code): #Получаем информацию о валютах из кэша без запроса к сайту
+        return self.currencies[code]
 
-print ("Конвертер")
-calc = float(input("Сумма для перевода: "))
-in_type = input("Из какой валюты выполняется конвертирование введённой суммы (rubl, dollar, euro, iena): ")
-convert_to = input("В какую валюту перевести введённую сумму(rubl, dollar, euro, iena): ")
+    def info(self, code): #Получаем новую информацию о валютах
+        self.currencies.append(code)
+        self.rates.update(dengi([code]))
+        return self.rates[code]
 
-id_dollar = "R01235" #USD
-id_euro = "R01239" #EUR
-id_iena = "R01820" #GBP
+    def update(self): #Обновляем 
 
-valuta = ET.parse(urllib.request.urlopen("http://www.cbr.ru/scripts/XML_daily.asp")) #данные с сайта
+        new_val = dengi(self.currencies)
+        self.rates.update(dict(zip(sorted(self.currencies),new_val.values())))
+        return self.rates
 
-@nerv #применяем наш декоратор
-def convert(calc):
-  for line in valuta.findall('Valute'):
-    id_v = line.get('ID')
-    if id_v == id_dollar:
-        rub1 = line.find('Value').text
-        print (rub1)
-    elif id_v == id_euro:
-        rub2 = line.find('Value').text
-        print (rub2)
-    elif id_v == id_iena:
-        rub3 = line.find('Value').text
-        print (rub3)
-       
-  rub1 = float(rub1.replace(',', '.'))
-  rub2 = float(rub2.replace(',', '.'))
-  rub3 = float(rub3.replace(',', '.'))
+    def timit(self): #Если проходит меньше 5 минут, данный о валютах берутся из кэша
+        if (time.clock() > 5*60):
+            return dengi(self.currencies)
+        else:
+            print('Не прошло и 5 минут с последнего обноаления')
 
-  if in_type == "rubl":
-    if convert_to == "rubl":
-      result = float (calc)
-    elif convert_to == "dollar":
-      result = float (calc) / rub1
-    elif convert_to == "euro":
-      result = float (calc) / rub2
-    elif convert_to == "iena":
-      result = float (calc) / rub3
-   
-  elif in_type == "dollar":  
-    if convert_to == "rubl":
-      result = float (calc) * rub1
-    elif convert_to == "dollar":
-      result = float (calc)
-    elif convert_to == "euro":
-      result = (float (calc) * rub1) / rub2
-    elif convert_to == "iena":
-      result = (float (calc) * rub1) / rub3
+cursnes = dengi()
 
-  elif in_type == "euro":  
-    if convert_to == "rubl":
-      result = float (calc) * rub2
-    elif convert_to == "dollar":
-      result = (float (calc) * rub2) / rub1
-    elif convert_to == "euro":
-      result = float (calc)
-    elif convert_to == "iena":
-      result = (float (calc) * rub2) / rub3
-
-  elif in_type == "iena":  
-    if convert_to == "rubl":
-      result = float (calc) * rub3
-    elif convert_to == "dollar":
-      result = (float (calc) * rub3) / rub1
-    elif convert_to == "euro":
-      result = (float (calc) * rub3) / rub2
-    elif convert_to == "iena":
-      result = float (calc)     
-  return result
-
-result = convert(calc)
-
-print (calc, in_type, " = ", result, convert_to)
+print("\ndollar = USD = R01235 \neuro = EUR = R01239 \niena = GBP = R01820  \n", cursnes)
