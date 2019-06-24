@@ -34,7 +34,7 @@ id_iena = "R01820" #GBP
 
 valuta = ET.parse(urllib.request.urlopen("http://www.cbr.ru/scripts/XML_daily.asp")) #данные с сайта
 
-#применяем декоратор
+
 def convert(calc):
   for line in valuta.findall('Valute'):
     id_v = line.get('ID')
